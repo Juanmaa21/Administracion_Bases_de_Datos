@@ -1,0 +1,2 @@
+# Crear tablespace de 10 megas
+CREATE TABLESPACE TS_LIFEFIT DATAFILE 'nombrefichero.dbf' SIZE 10M AUTOEXTEND ON; 

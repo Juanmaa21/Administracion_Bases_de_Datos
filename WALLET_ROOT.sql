@@ -1,0 +1,1 @@
+ALTER SYSTEM SET "WALLET_ROOT"='C:\app\alumnos\admin\orcl\wallet' scope=SPFILE;
