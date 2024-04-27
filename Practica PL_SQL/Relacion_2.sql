@@ -27,4 +27,39 @@ CREATE TABLE TB_ESTILO (
 );
 
 
+-- Ejercicio 3
+ALTER TABLE TB_OBJETOS ADD ESTADO VARCHAR2(50);
+ALTER TABLE TB_OBJETOS ADD NOMBRE_CORRECTO VARCHAR2(255);
+
+CREATE OR REPLACE PROCEDURE PR_COMRPOBAR (ESQUEMA IN VARCHAR2 DEFAULT NULL) AS
+    CURSOR TABLA_TB_OBJETOS IS SELECT * FROM TB_OBJETOS where ESQUEMA_ORIGINAL = NVL(ESQUEMA, ESQUEMA_ORIGINAL);
+    v_prefix VARCHAR2(64);
+BEGIN
+    FOR fila in TABLA_TB_OBJETOS LOOP
+        SELECT PREFIJO INTO v_prefix
+        FROM TB_ESTILO
+        WHERE TIPO_OBJETO = fila.TIPO;
+        
+        IF SUBSTR(fila.nombre, 1, LENGTH(v_prefix)) = v_prefix THEN
+            -- Es prefijo
+            fila.estado := 'CORRECTO';
+            fila.nombre_correcto := fila.nombre;
+        ELSE
+            fila.estado := 'INCORRECTO';
+            fila.nombre_correcto := v_prefix || fila.nombre;
+        END IF;
+        
+        IF LENGTH(fila.nombre_correcto) > 255 THEN
+            fila.nombre_correcto := SUBSTR(fila.nombre_correcto, 1, 255);
+        ELSE
+            fila.nombre_correcto := fila.nombre_correcto;
+        END IF;
+        
+    end LOOP;
+    COMMIT;
+END;
+/
+
+
+
 
