@@ -1,0 +1,110 @@
+-- EXAMEN PL/SQL 2022
+
+-- Ejercicio 1
+
+CREATE OR REPLACE TRIGGER TR_COMPRUEBA_FECHAS
+BEFORE INSERT ON PAGO
+FOR EACH ROW
+BEGIN
+	IF :NEW.FECHA < :NEW.FECHA_OPERACION THEN
+		RAISE PK_EXAMEN22.fecha_pago_incorrecta;
+	END IF;
+END;
+/
+
+-- Ejercicio 2
+
+CREATE OR REPLACE PACKAGE PK_EXAMEN22 AS
+	procedure genera_plazos
+		(p_numero_movimiento movimiento.numero%type,
+		p_fecha_primer_pago date,
+		p_cantidad_total movimiento.cantidad%type,
+		p_num_plazos movimiento.num_plazos%type);
+
+	function suma_pagos (p_num_tarjeta tarjeta.numero%type)
+		return number;
+
+	procedure comprueba_limites;
+
+END PK_EXAMEN22;
+/
+
+CREATE OR REPLACE PACKAGE BODY PK_EXAMEN22 AS
+	procedure genera_plazos
+		(p_numero_movimiento movimiento.numero%type,
+		p_fecha_primer_pago date,
+		p_cantidad_total movimiento.cantidad%type,
+		p_num_plazos movimiento.num_plazos%type) AS
+
+		v_fecha date;
+		v_importe_pago PAGO.IMPORTE%TYPE;
+	BEGIN
+		v_fecha := p_fecha_primer_pago;
+		v_importe_pago := p_cantidad_total / p_num_plazos;
+
+		SAVEPOINT INICIO;
+
+		FOR i IN 1..p_num_plazos LOOP
+			INSERT INTO PAGO (NUMERO_MOVIMIENTO, FECHA_PAGO, IMPORTE, ESTADO) 
+				VALUES (p_numero_movimiento, v_fecha, v_importe_pago, 'Pendiente');
+			v_fecha := ADD_MONTHS(v_fecha, 1);
+		END LOOP;
+
+		COMMIT;
+
+	EXCEPTION
+		WHEN OTHERS THEN
+			ROLLBACK TO INICIO;
+
+	END genera_plazos;
+
+
+	FUNCTION SUMA_PAGOS (p_num_tarjeta tarjeta.numero%type)
+		return number AS
+
+		SUMA NUMBER;
+	BEGIN
+		SUMA := 0;
+
+		FOR PAGO IN (SELECT VALOR FROM PAGOS WHERE NUM_TARJETA = P_NUM_TARJETA AND TO_CHAR(FECHA_PAGO, 'YYYYMM') = TO_CHAR(SYSDATE, 'YYYYMM')) LOOP
+			SUMA := SUMA + PAGO;
+		END LOOP;
+
+		RETURN SUMA;
+
+	EXCEPTION
+		WHEN OTHERS THEN
+			RETURN 0;
+
+	END SUMA_PAGOS;
+	
+
+
+	PROCEDURE COMPRUEBA_LIMITES AS
+
+	CURSOR S IS SELECT NUMERO, LIMITE FROM TARJETA;
+	CANTIDAD_TOTAL NUMBER;
+
+	BEGIN
+
+		SAVEPOINT INICIO_COMPRUEBA_LIMITES;
+
+		FOR TARJETILLA IN S LOOP
+			CANTIDAD_TOTAL := SUMA_PAGO(TARJETILLA.NUMERO);
+			INSERT INTO COMPROBACIONES(NUMERO_TARJETA, CANTIDAD, LIMITE)
+				VALUES (TARJETILLA.NUMERO, CANTIDAD_TOTAL, TARJETILLA.LIMITE);
+		END LOOP;
+
+		COMMIT;
+	EXCEPTION
+		WHEN OTHERS THEN
+			ROLLBACK TO INICIO_COMPRUEBA_LIMITES;
+
+	END COMPRUEBA_LIMITES;
+
+
+END PK_EXAMEN22;
+/
+
+
+
